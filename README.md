@@ -341,12 +341,58 @@ const time = date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digi
 
 ## 🔒 安全特性
 
-- ✅ 密码哈希存储（Werkzeug，6 万次迭代）
+- ✅ 密码哈希存储（Werkzeug，6 万次迭代，OWASP 2023 标准）
 - ✅ 登录验证装饰器
+- ✅ Session 固定攻击防护（登录后重新生成 session）
+- ✅ XSS 防护（消息内容 HTML 转义）
+- ✅ SQL 注入防护（参数化查询）
 - ✅ 文件上传限制（100MB）
 - ✅ 文件类型白名单（图片/视频）
+- ✅ CORS 配置支持（可限制域名）
 - ✅ 消息过期自动清理
 - ✅ 管理员权限分离
+- ✅ 环境变量支持（敏感配置不硬编码）
+
+---
+
+## 🔒 安全配置
+
+### 环境变量（生产环境必备）
+
+**启动前设置环境变量：**
+
+**Linux/Mac:**
+```bash
+export ADMIN_USERNAME='admin'
+export ADMIN_PASSWORD='YourStrongPassword123!'
+export SECRET_KEY='your-64-character-random-secret-key-here'
+export SOCKETIO_CORS_ORIGINS='https://yourdomain.com'
+```
+
+**Windows (PowerShell):**
+```powershell
+$env:ADMIN_USERNAME='admin'
+$env:ADMIN_PASSWORD='YourStrongPassword123!'
+$env:SECRET_KEY='your-64-character-random-secret-key-here'
+$env:SOCKETIO_CORS_ORIGINS='https://yourdomain.com'
+```
+
+**Docker:**
+```yaml
+environment:
+  - ADMIN_USERNAME=admin
+  - ADMIN_PASSWORD=YourStrongPassword123!
+  - SECRET_KEY=your-64-character-random-secret-key-here
+  - SOCKETIO_CORS_ORIGINS=https://yourdomain.com
+```
+
+### 安全建议
+
+1. **SECRET_KEY**: 使用 `openssl rand -hex 32` 生成 64 字符随机密钥
+2. **ADMIN_PASSWORD**: 至少 12 位，包含大小写字母、数字、特殊字符
+3. **SOCKETIO_CORS_ORIGINS**: 设置为你的域名，不要用 `*`
+4. **HTTPS**: 生产环境务必使用 HTTPS
+5. **防火墙**: 仅开放必要端口（如 5001）
 
 ---
 
@@ -363,7 +409,7 @@ UPLOAD_FOLDER = 'uploads'
 MESSAGE_RETENTION_DAYS = 10
 
 # Session 配置
-SECRET_KEY = 'your-secret-key-here'
+SECRET_KEY = os.environ.get('SECRET_KEY', os.urandom(24).hex())  # ✅ 从环境变量读取
 PERMANENT_SESSION_LIFETIME = timedelta(days=7)
 
 # Socket.IO 配置

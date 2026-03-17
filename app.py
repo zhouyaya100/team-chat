@@ -23,7 +23,11 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['PERMANENT_SESSION_LIFETIME'] = PERMANENT_SESSION_LIFETIME
 
 # 初始化 Socket.IO
-socketio = SocketIO(app, async_mode=SOCKETIO_ASYNC_MODE, cors_allowed_origins="*")
+# 生产环境应设置 SOCKETIO_CORS_ORIGINS 环境变量，如："https://yourdomain.com"
+socketio_cors = os.environ.get('SOCKETIO_CORS_ORIGINS', '*')
+if socketio_cors and socketio_cors != '*':
+    socketio_cors = [origin.strip() for origin in socketio_cors.split(',')]
+socketio = SocketIO(app, async_mode=SOCKETIO_ASYNC_MODE, cors_allowed_origins=socketio_cors)
 
 # 确保上传目录存在
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -49,6 +53,8 @@ def login():
         conn.close()
         
         if user and verify_password(password, user['password_hash']):
+            # 修复 Session 固定攻击：登录后重新生成 session
+            session.regenerate()
             session['user_id'] = user['id']
             session['username'] = user['username']
             session['nickname'] = user['nickname']

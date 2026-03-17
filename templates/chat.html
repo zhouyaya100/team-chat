@@ -900,6 +900,14 @@
         return colors[colorIndex - 1] || 'rgba(247, 247, 247, 1)';
     }
     
+    // HTML 转义函数（防 XSS）
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
     // 添加消息到界面
     function appendMessage(msg, type = 'group') {
         const isOwn = msg.sender_id === {{ user.id }};
@@ -926,15 +934,20 @@
             bgStyle = `style="background-color: ${getUserBgColor(colorIndex)};"`;
         }
         
+        // 使用 escapeHtml 转义消息内容（防 XSS）
+        const safeContent = escapeHtml(msg.content);
+        const safeDisplayName = escapeHtml(displayName);
+        const safeNickname = escapeHtml(msg.nickname || msg.username);
+        
         messageEl.innerHTML = `
             <div class="message-avatar">${avatarInitial}</div>
             <div class="message-body">
                 <div class="message-header">
-                    <span class="message-nickname">${displayName}</span>
+                    <span class="message-nickname">${safeNickname}</span>
                     <span class="message-time">${time}</span>
                 </div>
                 <div class="message-content" ${bgStyle}>
-                    ${msg.content || ''}
+                    ${safeContent}
                     ${renderFile(msg.file, isOwn)}
                 </div>
             </div>

@@ -4,7 +4,7 @@ from datetime import timedelta
 
 # 基础配置
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-SECRET_KEY = os.urandom(24).hex()  # 生产环境应固定
+SECRET_KEY = os.environ.get('SECRET_KEY', os.urandom(24).hex())  # 生产环境应设置环境变量
 
 # 数据库
 DATABASE_PATH = os.path.join(BASE_DIR, 'team_chat.db')
@@ -20,9 +20,9 @@ MESSAGE_RETENTION_DAYS = 10
 # 会话配置
 PERMANENT_SESSION_LIFETIME = timedelta(days=7)
 
-# 管理员用户名密码（首次启动后建议修改）
-ADMIN_USERNAME = 'admin'
-ADMIN_PASSWORD = 'Admin@123'
+# 管理员用户名密码（优先从环境变量读取）
+ADMIN_USERNAME = os.environ.get('ADMIN_USERNAME', 'admin')
+ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'Admin@123')  # ⚠️ 生产环境务必修改！
 
 # Socket.IO 配置
 SOCKETIO_ASYNC_MODE = 'threading'

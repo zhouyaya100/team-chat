@@ -1,0 +1,1223 @@
+{% extends "base.html" %}
+
+{% block title %}聊天 - Team Chat{% endblock %}
+
+{% block extra_css %}
+<style>
+    :root {
+        /* 主色调 */
+        --primary-color: #5E5CE6;
+        --primary-dark: #4B49C4;
+        
+        /* 背景色 */
+        --bg-main: #FFFFFF;
+        --bg-secondary: #F7F7F7;
+        --bg-dark: #121212;
+        
+        /* 文字色 */
+        --text-title: #0A0A0A;
+        --text-body: #333333;
+        --text-muted: #999999;
+        
+        /* 聊天气泡 */
+        --message-own: #5E5CE6;
+        --message-own-text: #FFFFFF;
+        --message-other: #F7F7F7;
+        
+        /* 不同用户的颜色池 - 浅色背景 */
+        --user-bg-1: rgba(94, 92, 230, 0.12);
+        --user-bg-2: rgba(255, 149, 0, 0.12);
+        --user-bg-3: rgba(52, 199, 89, 0.12);
+        --user-bg-4: rgba(255, 59, 48, 0.12);
+        --user-bg-5: rgba(175, 82, 222, 0.12);
+        --user-bg-6: rgba(0, 122, 255, 0.12);
+        --user-bg-7: rgba(255, 45, 85, 0.12);
+        --user-bg-8: rgba(88, 86, 214, 0.12);
+        
+        /* 功能色 */
+        --success: #34C759;
+        --warning: #FF9500;
+        --error: #FF3B30;
+        
+        /* 边框 */
+        --border-color: #E5E5E5;
+    }
+    
+    /* ========== 主容器 ========== */
+    .chat-container {
+        height: calc(100vh - 56px);
+        display: flex;
+        overflow: hidden;
+    }
+    
+    /* ========== 侧边栏 ========== */
+    .sidebar {
+        background: var(--bg-main);
+        border-right: 1px solid var(--border-color);
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        flex-shrink: 0;
+        width: 260px;
+        min-width: 260px;
+        max-width: 260px;
+    }
+    
+    /* 侧边栏标题 */
+    .sidebar-section-title {
+        padding: 0.5rem 1rem;
+        font-size: 0.7rem;
+        font-weight: 600;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        background: var(--bg-secondary);
+        border-bottom: 1px solid var(--border-color);
+    }
+    
+    /* 群组列表 */
+    #groups-list {
+        overflow-y: auto;
+        flex: 1;
+        min-height: 0;
+        border-bottom: 1px solid var(--border-color);
+    }
+    
+    /* 联系人列表 */
+    #contacts-list {
+        overflow-y: auto;
+        flex: 1;
+        min-height: 0;
+    }
+    
+    /* ========== 聊天区域 ========== */
+    .chat-area {
+        background: var(--bg-main);
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+    }
+    
+    .chat-header {
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid var(--border-color);
+        background: var(--bg-main);
+        min-height: 60px;
+        flex-shrink: 0;
+    }
+    
+    .messages-container {
+        flex: 1;
+        overflow-y: auto;
+        padding: 1.5rem;
+        background: var(--bg-main);
+        scroll-behavior: smooth;
+    }
+    
+    /* ========== 消息样式 ========== */
+    .message {
+        margin-bottom: 1.25rem;
+        display: flex;
+        gap: 0.75rem;
+        animation: fadeIn 0.2s ease;
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .message-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: var(--primary-color);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        font-size: 1rem;
+        flex-shrink: 0;
+    }
+    
+    .message-body {
+        max-width: calc(100% - 50px);
+    }
+    
+    .message-header {
+        display: flex;
+        align-items: baseline;
+        gap: 0.5rem;
+        margin-bottom: 0.25rem;
+    }
+    
+    .message-nickname {
+        font-weight: 600;
+        color: var(--text-title);
+        font-size: 0.9rem;
+    }
+    
+    .message-time {
+        font-size: 0.7rem;
+        color: var(--text-muted);
+    }
+    
+    .message-content {
+        background: var(--message-other);
+        padding: 0.75rem 1rem;
+        border-radius: 1rem;
+        color: var(--text-body);
+        word-wrap: break-word;
+        font-size: 0.95rem;
+        line-height: 1.5;
+        display: inline-block;
+        min-width: 60px;
+    }
+    
+    .message.own {
+        flex-direction: row-reverse;
+    }
+    
+    .message.own .message-body {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+    }
+    
+    .message.own .message-content {
+        background: var(--message-own) !important;
+        color: var(--message-own-text) !important;
+        display: inline-block;
+    }
+    
+    .message-file {
+        margin-top: 0.5rem;
+        padding: 0.75rem;
+        background: rgba(0,0,0,0.05);
+        border-radius: 0.5rem;
+        display: inline-block;
+    }
+    
+    .message-file img {
+        max-width: 300px;
+        max-height: 200px;
+        border-radius: 0.5rem;
+        cursor: pointer;
+        transition: transform 0.2s;
+    }
+    
+    .message-file img:hover { transform: scale(1.02); }
+    
+    .message-file video {
+        max-width: 400px;
+        max-height: 300px;
+        border-radius: 0.5rem;
+    }
+    
+    /* ========== 输入区域 ========== */
+    .message-input-area {
+        padding: 1rem 1.5rem;
+        border-top: 1px solid var(--border-color);
+        background: var(--bg-secondary);
+        position: sticky;
+        bottom: 0;
+        z-index: 100;
+        flex-shrink: 0;
+    }
+    
+    .input-wrapper {
+        max-width: 900px;
+        margin: 0 auto;
+    }
+    
+    .message-input-area .input-group {
+        background: var(--bg-main);
+        border-radius: 1.5rem;
+        padding: 0.5rem 1rem;
+        border: 1px solid var(--border-color);
+        transition: border-color 0.2s, box-shadow 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .message-input-area .input-group:focus-within {
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 3px rgba(94, 92, 230, 0.15);
+    }
+    
+    .message-input-area .form-control {
+        flex: 1;
+        border: none;
+        background: transparent;
+        padding: 0.5rem 0;
+        font-size: 0.95rem;
+        min-width: 0;
+    }
+    
+    .message-input-area .form-control:focus { box-shadow: none; }
+    
+    .message-input-area .file-upload-btn {
+        border: none;
+        background: transparent;
+        color: var(--text-muted);
+        padding: 0.5rem;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .message-input-area .file-upload-btn:hover {
+        color: var(--primary-color);
+        transform: scale(1.1);
+    }
+    
+    .message-input-area .file-upload-btn i {
+        font-size: 1.1rem;
+    }
+    
+    .send-btn {
+        border-radius: 50% !important;
+        width: 40px;
+        height: 40px;
+        padding: 0 !important;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+    
+    .upload-progress {
+        display: none;
+        margin-top: 0.5rem;
+        max-width: 900px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+    
+    #file-preview {
+        padding: 0.5rem;
+        background: var(--bg-main);
+        border-radius: 0.5rem;
+        margin-top: 0.5rem;
+        max-width: 900px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+    
+    /* ========== 群组/联系人项 ========== */
+    .group-item {
+        padding: 0.6rem 1rem;
+        cursor: pointer;
+        border-bottom: 1px solid var(--border-color);
+        transition: all 0.2s;
+        position: relative;
+    }
+    
+    .group-item:last-child {
+        border-bottom: none;
+    }
+    
+    .group-item:hover { background: var(--bg-secondary); }
+    
+    .group-item.active {
+        background: rgba(94, 92, 230, 0.1);
+        border-left: 3px solid var(--primary-color);
+    }
+    
+    .group-item .group-name {
+        font-weight: 500;
+        color: var(--text-title);
+        font-size: 0.95rem;
+    }
+    
+    .group-item .group-desc {
+        font-size: 0.8rem;
+        color: var(--text-muted);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        margin-top: 2px;
+    }
+    
+    .online-indicator {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        flex-shrink: 0;
+    }
+    
+    /* ========== 未读角标 ========== */
+    .unread-badge {
+        font-size: 11px !important;
+        padding: 2px 6px !important;
+        min-width: 18px !important;
+        height: 18px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        border-radius: 9px !important;
+        background-color: var(--error) !important;
+        color: white !important;
+        font-weight: 700 !important;
+        animation: bounce 0.3s ease !important;
+        z-index: 10;
+    }
+    
+    @keyframes bounce {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.15); }
+    }
+    
+    /* ========== 成员面板 ========== */
+    #members-panel {
+        transition: all 0.3s ease;
+        background: var(--bg-main);
+        flex-shrink: 0;
+    }
+    
+    #members-list {
+        overflow-y: auto;
+        max-height: calc(100vh - 60px);
+    }
+    
+    #members-list .member-item {
+        padding: 0.5rem 0.75rem;
+        border-radius: 0.5rem;
+        transition: background 0.2s;
+    }
+    
+    #members-list .member-item:hover { background: var(--bg-secondary); }
+    
+    /* ========== 空状态 ========== */
+    .empty-state {
+        text-align: center;
+        padding: 4rem 1.5rem;
+        color: var(--text-muted);
+    }
+    
+    .empty-state i { opacity: 0.5; margin-bottom: 1rem; }
+    .empty-state h5 { color: var(--text-title); margin-bottom: 0.5rem; }
+    
+    /* ========== 工具按钮 ========== */
+    .chat-header .btn {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.875rem;
+    }
+    
+    /* ========== 滚动条美化 ========== */
+    .sidebar::-webkit-scrollbar,
+    .messages-container::-webkit-scrollbar,
+    #members-list::-webkit-scrollbar,
+    #groups-list::-webkit-scrollbar,
+    #contacts-list::-webkit-scrollbar { width: 6px; }
+    
+    .sidebar::-webkit-scrollbar-track,
+    .messages-container::-webkit-scrollbar-track,
+    #members-list::-webkit-scrollbar-track,
+    #groups-list::-webkit-scrollbar-track,
+    #contacts-list::-webkit-scrollbar-track { background: var(--bg-secondary); }
+    
+    .sidebar::-webkit-scrollbar-thumb,
+    .messages-container::-webkit-scrollbar-thumb,
+    #members-list::-webkit-scrollbar-thumb,
+    #groups-list::-webkit-scrollbar-thumb,
+    #contacts-list::-webkit-scrollbar-thumb {
+        background: #C1C1C1;
+        border-radius: 3px;
+    }
+    
+    .sidebar::-webkit-scrollbar-thumb:hover,
+    .messages-container::-webkit-scrollbar-thumb:hover,
+    #members-list::-webkit-scrollbar-thumb:hover,
+    #groups-list::-webkit-scrollbar-thumb:hover,
+    #contacts-list::-webkit-scrollbar-thumb:hover { background: #A1A1A1; }
+    
+    /* ========== 响应式 ========== */
+    @media (max-width: 768px) {
+        .chat-container { height: calc(100vh - 56px); }
+        .sidebar {
+            position: fixed;
+            left: 0; top: 56px; bottom: 0;
+            width: 280px;
+            z-index: 1000;
+            transform: translateX(-100%);
+            transition: transform 0.3s;
+        }
+        .sidebar.show { transform: translateX(0); }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="chat-container">
+    <!-- 左侧边栏 -->
+    <div class="sidebar" id="left-sidebar">
+        <!-- 群组列表 -->
+        <div class="sidebar-section-title"><i class="fas fa-users"></i> 群组</div>
+        <div id="groups-list">
+            {% for group in groups %}
+            <div class="group-item" data-group-id="{{ group.id }}" data-group-name="{{ group.name }}" data-type="group" id="group-{{ group.id }}">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div style="flex: 1; min-width: 0;">
+                        <div class="group-name"><i class="fas fa-users text-primary"></i> {{ group.name }}</div>
+                        <div class="group-desc">{{ group.description or '暂无描述' }}</div>
+                    </div>
+                    <span class="message-notice badge bg-danger" style="display: none; font-size: 0.7rem; margin-left: 0.5rem;">新</span>
+                </div>
+            </div>
+            {% else %}
+            <div class="p-3 text-muted">
+                <small>暂无群组</small>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <!-- 联系人列表 -->
+        <div class="sidebar-section-title"><i class="fas fa-user-friends"></i> 联系人</div>
+        <div id="contacts-list">
+            {% for u in users %}
+            {% if u.id != user.id %}
+            <div class="group-item" data-user-id="{{ u.id }}" data-user-name="{{ u.nickname }}" data-type="private" id="contact-{{ u.id }}">
+                <div class="d-flex align-items-center">
+                    <span class="online-indicator {{ 'bg-success' if u.status == 'online' else 'bg-secondary' }} me-2"></span>
+                    <div style="flex: 1; min-width: 0;">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div class="group-name" style="font-size: 0.95rem;">{{ u.nickname }}</div>
+                            <span class="message-notice badge bg-danger" style="display: none; font-size: 0.7rem; margin-left: 0.5rem;">新</span>
+                        </div>
+                        <div class="group-desc" style="font-size: 0.8rem;">{{ u.username }}</div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+    
+    <!-- 右侧聊天区域 -->
+    <div class="chat-area" id="chat-area">
+        <div id="no-group-selected" class="empty-state">
+            <i class="fas fa-comments fa-3x mb-3"></i>
+            <h5>选择一个群组开始聊天</h5>
+            <p class="text-muted">从左侧列表选择群组或联系人</p>
+        </div>
+        
+        <div id="chat-active" style="display: none; height: 100%;">
+            <div class="chat-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0" id="current-group-name">
+                    <i class="fas fa-users"></i> <span>群组名称</span>
+                </h5>
+                <div>
+                    <button class="btn btn-sm btn-outline-secondary me-2" onclick="testNotification()" title="测试通知">
+                        <i class="fas fa-bell"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-primary" id="toggle-members-btn" style="display: none;" onclick="toggleMembersPanel()">
+                        <i class="fas fa-users"></i> 成员 (<span id="member-count">0</span>)
+                    </button>
+                </div>
+            </div>
+            
+            <div class="messages-container" id="messages-container">
+                <!-- 消息会动态加载到这里 -->
+            </div>
+            
+            <div class="message-input-area">
+                <div class="upload-progress" id="upload-progress">
+                    <div class="progress">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated" style="width: 100%"></div>
+                    </div>
+                    <small class="text-muted">上传中...</small>
+                </div>
+                
+                <div class="input-wrapper">
+                    <div class="input-group">
+                        <label class="btn file-upload-btn" title="上传文件">
+                            <i class="fas fa-paperclip"></i>
+                            <input type="file" id="file-input" accept="image/*,video/*" style="display: none;">
+                        </label>
+                        <input type="text" class="form-control" id="message-input" placeholder="输入消息..." autocomplete="off">
+                        <button class="btn btn-primary send-btn" id="send-btn">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                    <div id="file-preview" style="display: none;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 右侧成员面板 -->
+    <div class="sidebar border-start" id="members-panel" style="display: none; overflow-y: auto; width: 260px; min-width: 260px; max-width: 260px;">
+        <div class="p-3 border-bottom d-flex justify-content-between align-items-center">
+            <h6 class="mb-0"><i class="fas fa-users"></i> 群成员</h6>
+            <button class="btn btn-sm btn-link p-0" onclick="toggleMembersPanel()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div id="members-list" class="p-2">
+            <!-- 成员列表动态加载 -->
+        </div>
+    </div>
+</div>
+
+<!-- 图片查看模态框 -->
+<div class="modal fade" id="imageModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-body p-0">
+                <img src="" class="img-fluid" id="modal-image">
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // 初始化 Socket.IO
+    const socket = io();
+    
+    // 调试：监听 Socket.IO 连接状态
+    socket.on('connect', () => {
+        console.log('✅ Socket.IO 已连接:', socket.id);
+    });
+    
+    socket.on('disconnect', () => {
+        console.log('❌ Socket.IO 已断开');
+    });
+    
+    socket.on('connect_error', (error) => {
+        console.error('❌ Socket.IO 连接错误:', error);
+    });
+    
+    // 消息提示功能
+    let unreadCount = 0;
+    let originalTitle = document.title;
+    let audioContext = null;
+    const unreadCounts = {};
+    
+    // 请求通知权限
+    function requestNotificationPermission() {
+        if ('Notification' in window) {
+            if (Notification.permission === 'default') {
+                Notification.requestPermission().then(permission => {
+                    console.log('📬 通知权限:', permission);
+                });
+            } else {
+                console.log('📬 当前通知权限:', Notification.permission);
+            }
+        } else {
+            console.warn('⚠️ 浏览器不支持通知');
+        }
+    }
+    
+    // 播放提示音
+    function playNotificationSound() {
+        console.log('🔊 播放提示音...');
+        try {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            oscillator.frequency.value = 800;
+            oscillator.type = 'sine';
+            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.3);
+            console.log('✅ 提示音已播放');
+        } catch (error) {
+            console.error('❌ 播放提示音失败:', error);
+        }
+    }
+    
+    // 显示浏览器通知
+    function showBrowserNotification(title, body) {
+        console.log('显示通知:', title, body);
+        if ('Notification' in window && Notification.permission === 'granted') {
+            const notification = new Notification(title, {
+                body: body,
+                icon: '/static/icon.png',
+                badge: '/static/badge.png',
+                requireInteraction: false,
+                tag: 'team-chat-message'
+            });
+            notification.onclick = () => {
+                notification.close();
+                try {
+                    if (window.parent) window.parent.focus();
+                    else window.focus();
+                } catch (e) {
+                    console.log('无法聚焦窗口:', e);
+                }
+            };
+        } else {
+            console.log('通知权限未授予:', Notification.permission);
+        }
+    }
+    
+    // 更新标题栏
+    function updateTitle() {
+        if (unreadCount > 0) {
+            document.title = `(${unreadCount}) ${originalTitle}`;
+        } else {
+            document.title = originalTitle;
+        }
+    }
+    
+    // 更新未读角标显示
+    function updateUnreadBadge(item, count) {
+        console.log('[updateUnreadBadge] item:', item, 'count:', count);
+        const existingBadge = item.querySelector('.unread-badge');
+        if (existingBadge) existingBadge.remove();
+        if (count > 0) {
+            const badge = document.createElement('span');
+            badge.className = 'unread-badge bg-danger';
+            badge.textContent = count > 99 ? '99+' : count;
+            badge.style.cssText = 'position: absolute; right: 10px; top: 50%; transform: translateY(-50%); min-width: 20px; height: 20px; display: inline-flex; align-items: center; justify-content: center; border-radius: 10px; font-size: 12px; font-weight: bold; color: white; background-color: #dc3545; z-index: 10;';
+            if (item.style.position !== 'relative') {
+                item.style.position = 'relative';
+            }
+            item.appendChild(badge);
+            console.log('[updateUnreadBadge] 角标已添加:', badge);
+        }
+    }
+    
+    // 收到新消息提示
+    function onNewMessage(senderName, content, isPrivate = false) {
+        console.log('触发新消息提示:', senderName, content, isPrivate);
+        unreadCount++;
+        updateTitle();
+        playNotificationSound();
+        const items = document.querySelectorAll('.group-item');
+        items.forEach(item => {
+            const name = item.dataset.groupName || item.dataset.userName;
+            if (name === senderName) {
+                unreadCounts[name] = (unreadCounts[name] || 0) + 1;
+                updateUnreadBadge(item, unreadCounts[name]);
+                console.log('更新未读角标:', senderName, unreadCounts[name]);
+            }
+        });
+        const messageType = isPrivate ? '私聊' : '群聊';
+        console.log('显示浏览器通知...');
+        showBrowserNotification(`📬 新${messageType}消息`, `${senderName}: ${content.substring(0, 50)}`);
+    }
+    
+    // 页面获得焦点时清除未读数
+    window.addEventListener('focus', () => {
+        console.log('页面获得焦点，清除未读');
+        unreadCount = 0;
+        updateTitle();
+    });
+    
+    // 页面加载时请求通知权限
+    requestNotificationPermission();
+    console.log('📬 当前通知权限:', Notification.permission);
+    
+    // 状态
+    let currentGroupId = null;
+    let currentGroupName = null;
+    let currentPrivateUserId = null;
+    let currentPrivateUserName = null;
+    let chatType = null;
+    let uploadedFileId = null;
+    let currentGroupMembers = [];
+    
+    // DOM 元素
+    const messagesContainer = document.getElementById('messages-container');
+    const messageInput = document.getElementById('message-input');
+    const sendBtn = document.getElementById('send-btn');
+    const fileInput = document.getElementById('file-input');
+    const filePreview = document.getElementById('file-preview');
+    const uploadProgress = document.getElementById('upload-progress');
+    const noGroupSelected = document.getElementById('no-group-selected');
+    const chatActive = document.getElementById('chat-active');
+    const currentGroupNameEl = document.querySelector('#current-group-name span');
+    const currentGroupIcon = document.querySelector('#current-group-name i');
+    
+    // 点击聊天项
+    document.querySelectorAll('.group-item').forEach(item => {
+        item.addEventListener('click', () => {
+            const type = item.dataset.type;
+            if (chatType === 'group' && currentGroupId) {
+                socket.emit('leave_group', { group_id: currentGroupId });
+            } else if (chatType === 'private' && currentPrivateUserId) {
+                socket.emit('leave_private', { user_id: currentPrivateUserId });
+            }
+            document.querySelectorAll('.group-item').forEach(i => i.classList.remove('active'));
+            item.classList.add('active');
+            if (type === 'group') {
+                currentGroupId = parseInt(item.dataset.groupId);
+                currentGroupName = item.dataset.groupName;
+                chatType = 'group';
+                currentGroupIcon.className = 'fas fa-users';
+                currentGroupNameEl.textContent = currentGroupName;
+                socket.emit('join_group', { group_id: currentGroupId });
+                loadMessages(currentGroupId, 'group');
+                loadGroupMembers(currentGroupId);
+            } else {
+                currentPrivateUserId = parseInt(item.dataset.userId);
+                currentPrivateUserName = item.dataset.userName;
+                chatType = 'private';
+                currentGroupIcon.className = 'fas fa-user';
+                currentGroupNameEl.textContent = currentPrivateUserName;
+                document.getElementById('toggle-members-btn').style.display = 'none';
+                document.getElementById('members-panel').style.display = 'none';
+                document.getElementById('chat-area').className = 'col-md-9 col-lg-10 chat-area';
+                socket.emit('join_private', { user_id: currentPrivateUserId });
+                loadMessages(currentPrivateUserId, 'private');
+            }
+            const name = item.dataset.groupName || item.dataset.userName;
+            if (name) {
+                unreadCounts[name] = 0;
+                updateUnreadBadge(item, 0);
+                const notice = item.querySelector('.message-notice');
+                if (notice) notice.style.display = 'none';
+                
+                // 调用 API 标记为已读
+                if (type === 'group') {
+                    fetch(`/api/mark_read/group/${currentGroupId}`, { method: 'POST' });
+                } else {
+                    fetch(`/api/mark_read/private/${currentPrivateUserId}`, { method: 'POST' });
+                }
+            }
+            noGroupSelected.style.display = 'none';
+            chatActive.style.display = 'flex';
+            chatActive.style.flexDirection = 'column';
+        });
+    });
+    
+    // 加载消息
+    async function loadMessages(targetId, type) {
+        try {
+            const url = type === 'group' ? `/api/messages/${targetId}` : `/api/private_messages/${targetId}`;
+            const response = await fetch(url);
+            const messages = await response.json();
+            messagesContainer.innerHTML = '';
+            messages.forEach(msg => appendMessage(msg, type));
+            scrollToBottom();
+        } catch (error) {
+            console.error('加载消息失败:', error);
+        }
+    }
+    
+    // 加载群组成员
+    async function loadGroupMembers(groupId) {
+        try {
+            console.log('加载群组成员，群组 ID:', groupId);
+            const response = await fetch(`/api/group_members/${groupId}`);
+            console.log('响应状态:', response.status);
+            const members = await response.json();
+            console.log('成员数据:', members);
+            if (members.error) { console.error('加载失败:', members.error); return; }
+            currentGroupMembers = members;
+            document.getElementById('member-count').textContent = members.length;
+            document.getElementById('toggle-members-btn').style.display = 'block';
+            renderMembersList(members);
+        } catch (error) {
+            console.error('加载成员失败:', error);
+        }
+    }
+    
+    // 渲染成员列表
+    function renderMembersList(members) {
+        const membersList = document.getElementById('members-list');
+        console.log('渲染成员列表:', members);
+        if (!members || members.length === 0) {
+            membersList.innerHTML = '<div class="text-muted text-center py-3">暂无成员</div>';
+            return;
+        }
+        membersList.innerHTML = members.map(m => {
+            const isOnline = m.status === 'online';
+            const roleBadge = m.role === 'admin' ? '<span class="badge bg-danger badge-sm">管理员</span>' : '<span class="badge bg-secondary badge-sm">成员</span>';
+            const displayName = m.nickname || m.username || '未知用户';
+            const initial = displayName.charAt(0).toUpperCase();
+            return `
+                <div class="d-flex align-items-center member-item">
+                    <div class="position-relative me-2">
+                        <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 36px; height: 36px; font-weight: 600; flex-shrink: 0;">${initial}</div>
+                        <span class="position-absolute bottom-0 end-0 badge ${isOnline ? 'bg-success' : 'bg-secondary'}" style="width: 10px; height: 10px; border-radius: 50%; border: 1px solid white;"></span>
+                    </div>
+                    <div class="flex-grow-1" style="min-width: 0;">
+                        <div class="d-flex align-items-center gap-1 flex-wrap">
+                            <span class="fw-medium" style="font-size: 0.9rem;">${displayName}</span>
+                            ${roleBadge}
+                        </div>
+                        <small class="text-muted" style="font-size: 0.75rem;">${m.username || ''}</small>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+    
+    // 切换成员面板
+    function toggleMembersPanel() {
+        const membersPanel = document.getElementById('members-panel');
+        const chatArea = document.getElementById('chat-area');
+        if (membersPanel.style.display === 'none') {
+            membersPanel.style.display = 'flex';
+            membersPanel.style.flexDirection = 'column';
+        } else {
+            membersPanel.style.display = 'none';
+        }
+    }
+    
+    // 用户颜色映射（根据用户 ID 固定分配）
+    const userColorMap = {};
+    
+    // 获取用户颜色索引（1-8）
+    function getUserColorIndex(userId) {
+        if (!userColorMap[userId]) {
+            userColorMap[userId] = (userId % 8) + 1;
+        }
+        return userColorMap[userId];
+    }
+    
+    // 获取用户背景色（直接返回 RGB 值）
+    function getUserBgColor(colorIndex) {
+        const colors = [
+            'rgba(94, 92, 230, 0.12)',   // 1 - 淡紫
+            'rgba(255, 149, 0, 0.12)',   // 2 - 淡橙
+            'rgba(52, 199, 89, 0.12)',   // 3 - 淡绿
+            'rgba(255, 59, 48, 0.12)',   // 4 - 淡红
+            'rgba(175, 82, 222, 0.12)',  // 5 - 淡紫罗兰
+            'rgba(0, 122, 255, 0.12)',   // 6 - 淡蓝
+            'rgba(255, 45, 85, 0.12)',   // 7 - 淡粉红
+            'rgba(88, 86, 214, 0.12)'    // 8 - 淡靛蓝
+        ];
+        return colors[colorIndex - 1] || 'rgba(247, 247, 247, 1)';
+    }
+    
+    // 添加消息到界面
+    function appendMessage(msg, type = 'group') {
+        const isOwn = msg.sender_id === {{ user.id }};
+        // 解析时间并转换为北京时间（+8 小时）
+        let createdAt = msg.created_at;
+        if (typeof createdAt === 'string') {
+            // 数据库存的是 UTC 时间（如 "2026-03-17 08:42:00"），需要当作 UTC 解析
+            // 方法：在字符串后加 "Z" 告诉 JS 这是 UTC 时间
+            const date = new Date(createdAt.replace(' ', 'T') + 'Z');
+            createdAt = date;
+        }
+        const time = createdAt.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+        const avatarInitial = (msg.nickname || msg.username || 'U')[0].toUpperCase();
+        const messageEl = document.createElement('div');
+        const colorIndex = isOwn ? null : getUserColorIndex(msg.sender_id);
+        console.log('[appendMessage] sender_id:', msg.sender_id, 'isOwn:', isOwn, 'colorIndex:', colorIndex, 'raw_time:', msg.created_at, 'local_time:', time);
+        messageEl.className = `message ${isOwn ? 'own' : ''}`;
+        let displayName = msg.nickname || msg.username;
+        if (type === 'private' && isOwn) { displayName = '我'; }
+        
+        // 计算背景色
+        let bgStyle = '';
+        if (!isOwn && colorIndex) {
+            bgStyle = `style="background-color: ${getUserBgColor(colorIndex)};"`;
+        }
+        
+        messageEl.innerHTML = `
+            <div class="message-avatar">${avatarInitial}</div>
+            <div class="message-body">
+                <div class="message-header">
+                    <span class="message-nickname">${displayName}</span>
+                    <span class="message-time">${time}</span>
+                </div>
+                <div class="message-content" ${bgStyle}>
+                    ${msg.content || ''}
+                    ${renderFile(msg.file, isOwn)}
+                </div>
+            </div>
+        `;
+        messagesContainer.appendChild(messageEl);
+    }
+    
+    // 渲染文件
+    function renderFile(file, isOwn) {
+        if (!file) return '';
+        const fileUrl = `/api/files/${file.id}`;
+        const fileSize = (file.file_size / 1024 / 1024).toFixed(2);
+        if (file.mime_type.startsWith('image/')) {
+            return `<div class="message-file"><img src="${fileUrl}" onclick="showImage('${fileUrl}')"></div>`;
+        } else if (file.mime_type.startsWith('video/')) {
+            return `<div class="message-file"><video controls><source src="${fileUrl}" type="${file.mime_type}">您的浏览器不支持视频播放</video></div>`;
+        } else {
+            return `<div class="message-file"><a href="${fileUrl}" class="text-white"><i class="fas fa-file"></i> ${file.original_name} (${fileSize}MB)</a></div>`;
+        }
+    }
+    
+    // 显示图片
+    function showImage(url) {
+        document.getElementById('modal-image').src = url;
+        new bootstrap.Modal(document.getElementById('imageModal')).show();
+    }
+    
+    // 滚动到底部
+    function scrollToBottom() {
+        if (messagesContainer) {
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            console.log('已滚动到消息底部');
+        }
+    }
+    
+    // 发送消息
+    function sendMessage() {
+        const content = messageInput.value.trim();
+        if (!content && !uploadedFileId) return;
+        if (chatType === 'group') {
+            socket.emit('send_message', { group_id: currentGroupId, content: content, file_id: uploadedFileId }, (response) => {
+                if (response.error) alert(response.error);
+                else { messageInput.value = ''; clearFilePreview(); }
+            });
+        } else if (chatType === 'private') {
+            socket.emit('send_private_message', { receiver_id: currentPrivateUserId, content: content, file_id: uploadedFileId }, (response) => {
+                if (response.error) alert(response.error);
+                else { messageInput.value = ''; clearFilePreview(); }
+            });
+        }
+    }
+    
+    // 文件上传
+    fileInput.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        if (file.size > 100 * 1024 * 1024) { alert('文件大小不能超过 100MB'); return; }
+        const formData = new FormData();
+        formData.append('file', file);
+        uploadProgress.style.display = 'block';
+        try {
+            const response = await fetch('/api/upload', { method: 'POST', body: formData });
+            const result = await response.json();
+            if (result.success) {
+                uploadedFileId = result.file_id;
+                showFilePreview(file, result);
+            } else {
+                alert('上传失败：' + result.error);
+            }
+        } catch (error) {
+            alert('上传失败：' + error);
+        } finally {
+            uploadProgress.style.display = 'none';
+            fileInput.value = '';
+        }
+    });
+    
+    // 显示文件预览
+    function showFilePreview(file, result) {
+        if (file.type.startsWith('image/')) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                filePreview.innerHTML = `<div class="d-flex align-items-center gap-2"><img src="${e.target.result}" style="height: 60px; border-radius: 4px;"><span>${file.name}</span><button class="btn btn-sm btn-outline-danger" onclick="clearFilePreview()"><i class="fas fa-times"></i></button></div>`;
+                filePreview.style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+        } else {
+            filePreview.innerHTML = `<div class="d-flex align-items-center gap-2"><i class="fas fa-file fa-2x"></i><span>${file.name}</span><button class="btn btn-sm btn-outline-danger" onclick="clearFilePreview()"><i class="fas fa-times"></i></button></div>`;
+            filePreview.style.display = 'block';
+        }
+    }
+    
+    // 清除文件预览
+    function clearFilePreview() {
+        uploadedFileId = null;
+        filePreview.style.display = 'none';
+        filePreview.innerHTML = '';
+    }
+    
+    // Socket.IO 事件 - 群消息
+    socket.on('new_message', (msg) => {
+        console.log('====================');
+        console.log('📨 收到群消息:', msg);
+        console.log('当前 chatType:', chatType);
+        console.log('当前 currentGroupId:', currentGroupId);
+        console.log('消息 group_id:', msg.group_id);
+        console.log('是否当前群组:', chatType === 'group' && msg.group_id === currentGroupId);
+        if (chatType === 'group' && msg.group_id === currentGroupId) {
+            console.log('✅ 当前群组消息，追加显示');
+            appendMessage(msg, 'group');
+            scrollToBottom();
+        } else {
+            console.log('🔔 其他群组消息，触发角标');
+            console.log('调用 showUnreadBadgeForGroup, groupId:', msg.group_id);
+            showUnreadBadgeForGroup(msg.group_id, msg.nickname || msg.username);
+        }
+    });
+    
+    // Socket.IO 事件 - 私聊消息
+    socket.on('new_private_message', (msg) => {
+        console.log('====================');
+        console.log('📨 收到私聊消息:', msg);
+        console.log('当前用户 ID:', {{ user.id }});
+        console.log('当前 chatType:', chatType);
+        console.log('当前 currentPrivateUserId:', currentPrivateUserId);
+        console.log('消息发送者:', msg.sender_id, '接收者:', msg.receiver_id);
+        const isCurrentChat = chatType === 'private' && ((msg.sender_id === currentPrivateUserId && msg.receiver_id === {{ user.id }}) || (msg.sender_id === {{ user.id }} && msg.receiver_id === currentPrivateUserId));
+        console.log('是否当前私聊:', isCurrentChat);
+        if (isCurrentChat) {
+            console.log('✅ 当前私聊消息，追加显示');
+            appendMessage(msg, 'private');
+            scrollToBottom();
+        } else if (msg.receiver_id === {{ user.id }}) {
+            console.log('🔔 其他私聊消息，触发角标');
+            console.log('调用 showUnreadBadgeForPrivate, senderId:', msg.sender_id);
+            showUnreadBadgeForPrivate(msg.sender_id, msg.nickname || msg.username);
+        } else {
+            console.log('⚠️ 不是给我的消息，忽略');
+        }
+    });
+    
+    // 显示群组未读角标
+    function showUnreadBadgeForGroup(groupId, senderName) {
+        console.log('[showUnreadBadgeForGroup] groupId:', groupId, 'senderName:', senderName);
+        unreadCount++;
+        updateTitle();
+        playNotificationSound();
+        const selector = `.group-item[data-group-id="${groupId}"]`;
+        console.log('[showUnreadBadgeForGroup] selector:', selector);
+        const groupItem = document.querySelector(selector);
+        if (groupItem) {
+            const groupName = groupItem.dataset.groupName;
+            console.log('[showUnreadBadgeForGroup] 找到群组:', groupName);
+            unreadCounts[groupName] = (unreadCounts[groupName] || 0) + 1;
+            console.log('[showUnreadBadgeForGroup] 未读数:', unreadCounts[groupName]);
+            updateUnreadBadge(groupItem, unreadCounts[groupName]);
+        } else {
+            console.error('[showUnreadBadgeForGroup] ❌ 未找到群组项，groupId:', groupId);
+            const allGroups = document.querySelectorAll('.group-item[data-group-id]');
+            console.log('[showUnreadBadgeForGroup] 所有群组项:', Array.from(allGroups).map(el => ({ id: el.dataset.groupId, name: el.dataset.groupName })));
+        }
+    }
+    
+    // 显示联系人未读角标
+    function showUnreadBadgeForPrivate(userId, senderName) {
+        console.log('[showUnreadBadgeForPrivate] userId:', userId, 'senderName:', senderName);
+        unreadCount++;
+        updateTitle();
+        playNotificationSound();
+        const selector = `.group-item[data-user-id="${userId}"]`;
+        console.log('[showUnreadBadgeForPrivate] selector:', selector);
+        const contactItem = document.querySelector(selector);
+        if (contactItem) {
+            const contactName = contactItem.dataset.userName;
+            console.log('[showUnreadBadgeForPrivate] 找到联系人:', contactName);
+            unreadCounts[contactName] = (unreadCounts[contactName] || 0) + 1;
+            console.log('[showUnreadBadgeForPrivate] 未读数:', unreadCounts[contactName]);
+            updateUnreadBadge(contactItem, unreadCounts[contactName]);
+        } else {
+            console.error('[showUnreadBadgeForPrivate] ❌ 未找到联系人项，userId:', userId);
+            const allContacts = document.querySelectorAll('.group-item[data-user-id]');
+            console.log('[showUnreadBadgeForPrivate] 所有联系人项:', Array.from(allContacts).map(el => ({ id: el.dataset.userId, name: el.dataset.userName })));
+        }
+    }
+    
+    // 按钮事件
+    sendBtn.addEventListener('click', sendMessage);
+    messageInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendMessage(); });
+    
+    // 测试通知
+    function testNotification() {
+        console.log('🔔 测试通知...');
+        if ('Notification' in window) {
+            Notification.requestPermission().then(permission => {
+                console.log('📬 通知权限:', permission);
+                if (permission === 'granted') {
+                    playNotificationSound();
+                    showBrowserNotification('🔔 测试通知', '消息提示功能正常工作！');
+                    alert('✅ 通知已发送，提示音已播放！');
+                } else if (permission === 'denied') {
+                    alert('❌ 通知权限被拒绝！\n\n请在浏览器地址栏左侧点击锁图标 → 通知 → 允许');
+                } else {
+                    alert('⚠️ 通知权限状态：' + permission);
+                }
+            });
+        } else {
+            alert('❌ 您的浏览器不支持通知功能。');
+        }
+    }
+    
+    // 加载未读消息数量
+    async function loadUnreadCount() {
+        try {
+            const response = await fetch('/api/unread/count');
+            const data = await response.json();
+            console.log('📬 未读消息:', data);
+            
+            // 更新群组未读
+            for (const [groupId, count] of Object.entries(data.groups)) {
+                const groupItem = document.querySelector(`.group-item[data-group-id="${groupId}"]`);
+                if (groupItem) {
+                    const groupName = groupItem.dataset.groupName;
+                    unreadCounts[groupName] = count;
+                    updateUnreadBadge(groupItem, count);
+                }
+            }
+            
+            // 更新联系人未读
+            for (const [senderId, count] of Object.entries(data.private)) {
+                const contactItem = document.querySelector(`.group-item[data-user-id="${senderId}"]`);
+                if (contactItem) {
+                    const contactName = contactItem.dataset.userName;
+                    unreadCounts[contactName] = count;
+                    updateUnreadBadge(contactItem, count);
+                }
+            }
+        } catch (error) {
+            console.error('加载未读消息失败:', error);
+        }
+    }
+    
+    // 页面加载时自动加入所有群组房间
+    function joinAllGroupRooms() {
+        const groupItems = document.querySelectorAll('#groups-list .group-item');
+        console.log('📍 自动加入群组房间，数量:', groupItems.length);
+        groupItems.forEach(item => {
+            const groupId = item.dataset.groupId;
+            if (groupId) {
+                socket.emit('join_group', { group_id: parseInt(groupId) });
+                console.log('✅ 加入群组房间:', groupId);
+            }
+        });
+    }
+    
+    // 页面加载时自动加入所有私聊房间
+    function joinAllPrivateRooms() {
+        const contactItems = document.querySelectorAll('#contacts-list .group-item');
+        const currentUserId = {{ user.id }};
+        console.log('📍 自动加入私聊房间，数量:', contactItems.length);
+        contactItems.forEach(item => {
+            const otherUserId = item.dataset.userId;
+            if (otherUserId) {
+                const roomUsers = [currentUserId, parseInt(otherUserId)].sort((a, b) => a - b);
+                const roomName = `private_${roomUsers[0]}_${roomUsers[1]}`;
+                socket.emit('join_private', { user_id: parseInt(otherUserId) });
+                console.log('✅ 加入私聊房间:', roomName, 'with user:', otherUserId);
+            }
+        });
+    }
+    
+    // 延迟加入房间并加载未读数量
+    setTimeout(() => {
+        if (socket.connected) {
+            joinAllGroupRooms();
+            joinAllPrivateRooms();
+            loadUnreadCount();
+        } else {
+            socket.on('connect', () => {
+                joinAllGroupRooms();
+                joinAllPrivateRooms();
+                loadUnreadCount();
+            });
+        }
+    }, 500);
+</script>
+{% endblock %}

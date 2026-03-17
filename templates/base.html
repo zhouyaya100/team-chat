@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Team Chat{% endblock %}</title>
+    <link href="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.bootcdn.net/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            /* 主色调 */
+            --primary-color: #5E5CE6;
+            --primary-hover: #4B49C4;
+            
+            /* 背景色 */
+            --bg-color: #FFFFFF;
+            --bg-secondary: #F7F7F7;
+            --bg-dark: #121212;
+            
+            /* 文字色 */
+            --text-title: #0A0A0A;
+            --text-body: #333333;
+            --text-muted: #999999;
+            
+            /* 聊天气泡 */
+            --message-own: #E5E5EA;
+            --message-other: #F7F7F7;
+            
+            /* 功能色 */
+            --success: #34C759;
+            --warning: #FF9500;
+            --error: #FF3B30;
+        }
+        
+        body {
+            background: var(--bg-color);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            color: var(--text-body);
+        }
+        
+        .navbar {
+            background: var(--bg-secondary);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+        
+        .navbar-brand {
+            font-weight: 600;
+            color: var(--primary-color) !important;
+        }
+        
+        .btn-primary {
+            background: var(--primary-color);
+            border: none;
+        }
+        
+        .btn-primary:hover {
+            background: var(--primary-hover);
+        }
+        
+        .form-control {
+            background: var(--bg-main);
+            border-color: #E5E5E5;
+        }
+        
+        .form-control:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 0.2rem rgba(94, 92, 230, 0.25);
+        }
+        
+        {% block extra_css %}{% endblock %}
+    </style>
+</head>
+<body>
+    {% if user %}
+    <nav class="navbar navbar-expand-lg navbar-light">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="{{ url_for('chat') }}">
+                <i class="fas fa-comments"></i> Team Chat
+            </a>
+            <div class="navbar-nav ms-auto">
+                <span class="nav-item nav-link text-muted">
+                    <i class="fas fa-user-circle"></i> {{ user.nickname }}
+                </span>
+                {% if user.is_admin %}
+                <a class="nav-link" href="{{ url_for('admin') }}">
+                    <i class="fas fa-cog"></i> 管理
+                </a>
+                {% endif %}
+                {% if user is defined %}
+                <a class="nav-link" href="#" data-bs-toggle="modal" data-bs-target="#profileModal">
+                    <i class="fas fa-user-cog"></i> 设置
+                </a>
+                {% endif %}
+                <a class="nav-link" href="{{ url_for('logout') }}">
+                    <i class="fas fa-sign-out-alt"></i> 退出
+                </a>
+            </div>
+        </div>
+    </nav>
+    {% endif %}
+    
+    <main class="container-fluid">
+        {% block content %}{% endblock %}
+    </main>
+    
+    <script src="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.bootcdn.net/ajax/libs/socket.io/4.6.0/socket.io.min.js"></script>
+    
+    {% if user is defined %}
+    <!-- 个人资料模态框 -->
+    <div class="modal fade" id="profileModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-user-cog"></i> 个人设置</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">用户名</label>
+                        <input type="text" class="form-control" value="{{ user.username }}" disabled>
+                        <div class="form-text">用户名不可修改</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">昵称</label>
+                        <input type="text" class="form-control" id="profile-nickname" value="{{ user.nickname }}">
+                    </div>
+                    <hr>
+                    <h6>修改密码</h6>
+                    <div class="mb-3">
+                        <label class="form-label">当前密码</label>
+                        <input type="password" class="form-control" id="current-password">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">新密码</label>
+                        <input type="password" class="form-control" id="new-password" minlength="6">
+                        <div class="form-text">至少 6 个字符</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">确认新密码</label>
+                        <input type="password" class="form-control" id="confirm-password" minlength="6">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" onclick="updateProfile()">保存修改</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    {% if user is defined %}
+    <script>
+        // 更新个人资料
+        async function updateProfile() {
+            const nickname = document.getElementById('profile-nickname').value.trim();
+            const currentPassword = document.getElementById('current-password').value;
+            const newPassword = document.getElementById('new-password').value;
+            const confirmPassword = document.getElementById('confirm-password').value;
+            
+            if (!nickname) {
+                alert('昵称不能为空');
+                return;
+            }
+            
+            // 如果修改密码
+            if (currentPassword || newPassword || confirmPassword) {
+                if (!currentPassword) {
+                    alert('请输入当前密码');
+                    return;
+                }
+                if (!newPassword) {
+                    alert('请输入新密码');
+                    return;
+                }
+                if (newPassword.length < 6) {
+                    alert('密码至少 6 个字符');
+                    return;
+                }
+                if (newPassword !== confirmPassword) {
+                    alert('两次输入的密码不一致');
+                    return;
+                }
+            }
+            
+            try {
+                const response = await fetch('/api/update_profile', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        nickname,
+                        current_password: currentPassword || null,
+                        new_password: newPassword || null
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert('修改成功');
+                    if (result.nickname) {
+                        location.reload(); // 昵称变了就刷新
+                    } else {
+                        bootstrap.Modal.getInstance(document.getElementById('profileModal')).hide();
+                        // 清空密码字段
+                        document.getElementById('current-password').value = '';
+                        document.getElementById('new-password').value = '';
+                        document.getElementById('confirm-password').value = '';
+                    }
+                } else {
+                    alert('修改失败：' + result.error);
+                }
+            } catch (error) {
+                alert('修改失败：' + error);
+            }
+        }
+    </script>
+    {% endif %}
+    
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

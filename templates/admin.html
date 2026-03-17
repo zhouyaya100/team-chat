@@ -1,0 +1,602 @@
+{% extends "base.html" %}
+
+{% block title %}管理后台 - Team Chat{% endblock %}
+
+{% block extra_css %}
+<style>
+    .admin-container {
+        padding: 2rem;
+    }
+    
+    .card {
+        border: none;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    
+    .table-action-btn {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.875rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="admin-container">
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <h4><i class="fas fa-cog"></i> 管理后台</h4>
+        </div>
+        <div class="col-md-6 text-end">
+            <button class="btn btn-success me-2" data-bs-toggle="modal" data-bs-target="#createUserModal">
+                <i class="fas fa-user-plus"></i> 添加用户
+            </button>
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createGroupModal">
+                <i class="fas fa-plus"></i> 创建群组
+            </button>
+        </div>
+    </div>
+    
+    <!-- 群组管理 -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0"><i class="fas fa-users"></i> 群组管理</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>名称</th>
+                                    <th>描述</th>
+                                    <th>创建者</th>
+                                    <th>成员数</th>
+                                    <th>创建时间</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for group in groups %}
+                                <tr>
+                                    <td>{{ group.id }}</td>
+                                    <td>{{ group.name }}</td>
+                                    <td>{{ group.description or '-' }}</td>
+                                    <td>{{ group.created_by }}</td>
+                                    <td>
+                                        <span class="badge bg-info" id="member-count-{{ group.id }}">-</span>
+                                    </td>
+                                    <td>{{ group.created_at }}</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline-primary table-action-btn" onclick="viewMembers({{ group.id }})">
+                                            <i class="fas fa-users"></i> 成员
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-danger table-action-btn" onclick="deleteGroup({{ group.id }})">
+                                            <i class="fas fa-trash"></i> 删除
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="7" class="text-center text-muted py-4">暂无群组</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 用户管理 -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0"><i class="fas fa-user-friends"></i> 用户管理</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>用户名</th>
+                                    <th>昵称</th>
+                                    <th>状态</th>
+                                    <th>角色</th>
+                                    <th>已加群</th>
+                                    <th>注册时间</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for u in users %}
+                                <tr>
+                                    <td>{{ u.id }}</td>
+                                    <td>{{ u.username }}</td>
+                                    <td>{{ u.nickname }}</td>
+                                    <td>
+                                        <span class="badge {{ 'bg-success' if u.status == 'online' else 'bg-secondary' }}">
+                                            {{ u.status }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if u.is_admin %}
+                                        <span class="badge bg-danger">管理员</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">普通用户</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="user-groups" data-user-id="{{ u.id }}">
+                                            <span class="spinner-border spinner-border-sm" role="status"></span>
+                                        </span>
+                                    </td>
+                                    <td>{{ u.created_at }}</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline-primary table-action-btn" onclick="addToGroup({{ u.id }}, '{{ u.nickname }}')">
+                                            <i class="fas fa-user-plus"></i> 加群
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="8" class="text-center text-muted py-4">暂无用户</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 添加用户模态框 -->
+<div class="modal fade" id="createUserModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-user-plus"></i> 添加用户</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">用户名</label>
+                    <input type="text" class="form-control" id="new-username" required>
+                    <div class="form-text">至少 3 个字符</div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">昵称</label>
+                    <input type="text" class="form-control" id="new-nickname" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">密码</label>
+                    <input type="password" class="form-control" id="new-password" required minlength="6">
+                    <div class="form-text">至少 6 个字符</div>
+                </div>
+                <div class="mb-3 form-check">
+                    <input type="checkbox" class="form-check-input" id="new-is-admin">
+                    <label class="form-check-label">设为管理员</label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-success" onclick="createUser()">添加</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 创建群组模态框 -->
+<div class="modal fade" id="createGroupModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">创建群组</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">群组名称</label>
+                    <input type="text" class="form-control" id="group-name" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">群组描述</label>
+                    <textarea class="form-control" id="group-desc" rows="3"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="createGroup()">创建</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 所有群组数据（隐藏） -->
+<script id="all-groups-data" type="application/json">
+    {{ groups | tojson }}
+</script>
+
+<!-- 添加成员模态框 -->
+<div class="modal fade" id="addMemberModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">添加成员到群组</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>将 <strong id="target-user-name"></strong> 添加到：</p>
+                <select class="form-select" id="target-group-select">
+                    {% for group in groups %}
+                    <option value="{{ group.id }}">{{ group.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="confirmAddMember()">确认</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let selectedUserId = null;
+    
+    // 创建用户
+    async function createUser() {
+        const username = document.getElementById('new-username').value.trim();
+        const nickname = document.getElementById('new-nickname').value.trim();
+        const password = document.getElementById('new-password').value;
+        const isAdmin = document.getElementById('new-is-admin').checked;
+        
+        if (!username || !nickname || !password) {
+            alert('请填写所有字段');
+            return;
+        }
+        
+        if (username.length < 3) {
+            alert('用户名至少 3 个字符');
+            return;
+        }
+        
+        if (password.length < 6) {
+            alert('密码至少 6 个字符');
+            return;
+        }
+        
+        try {
+            const response = await fetch('/api/admin/create_user', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, nickname, password, is_admin: isAdmin })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                alert('用户添加成功');
+                bootstrap.Modal.getInstance(document.getElementById('createUserModal')).hide();
+                // 刷新数据
+                await refreshAdminPage();
+                // 清空表单
+                document.getElementById('new-username').value = '';
+                document.getElementById('new-nickname').value = '';
+                document.getElementById('new-password').value = '';
+                document.getElementById('new-is-admin').checked = false;
+            } else {
+                alert('添加失败：' + result.error);
+            }
+        } catch (error) {
+            alert('添加失败：' + error);
+        }
+    }
+    
+    // 创建群组
+    async function createGroup() {
+        const name = document.getElementById('group-name').value.trim();
+        const description = document.getElementById('group-desc').value.trim();
+        
+        if (!name) {
+            alert('请输入群组名称');
+            return;
+        }
+        
+        try {
+            const response = await fetch('/api/admin/create_group', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, description })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                alert('群组创建成功');
+                bootstrap.Modal.getInstance(document.getElementById('createGroupModal')).hide();
+                // 刷新数据
+                await refreshAdminPage();
+                // 清空表单
+                document.getElementById('group-name').value = '';
+                document.getElementById('group-desc').value = '';
+            } else {
+                alert('创建失败：' + result.error);
+            }
+        } catch (error) {
+            alert('创建失败：' + error);
+        }
+    }
+    
+    // 删除群组
+    async function deleteGroup(groupId) {
+        if (!confirm('确定要删除此群组吗？所有消息和文件将被删除。')) return;
+        
+        try {
+            const response = await fetch('/api/admin/delete_group', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ group_id: groupId })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                alert('群组已删除');
+                await refreshAdminPage();
+            }
+        } catch (error) {
+            alert('删除失败：' + error);
+        }
+    }
+    
+    // 查看成员
+    async function viewMembers(groupId) {
+        try {
+            const response = await fetch(`/api/admin/group_members/${groupId}`);
+            const members = await response.json();
+            
+            if (members.error) {
+                alert('获取失败：' + members.error);
+                return;
+            }
+            
+            if (members.length === 0) {
+                alert('该群组暂无成员');
+                return;
+            }
+            
+            const memberList = members.map((m, i) => {
+                const roleText = m.role === 'admin' ? '群管理员' : '成员';
+                return `<div class="d-flex justify-content-between align-items-center mb-2 p-2 border rounded">
+                    <div>
+                        <strong>${m.nickname}</strong> <small class="text-muted">(${m.username})</small>
+                        <span class="badge ${m.role === 'admin' ? 'bg-danger' : 'bg-secondary'} ms-2">${roleText}</span>
+                    </div>
+                    <button class="btn btn-sm btn-outline-danger" onclick="removeMember(${groupId}, ${m.id}, '${m.nickname}')">
+                        <i class="fas fa-trash"></i> 移除
+                    </button>
+                </div>`;
+            }).join('');
+            
+            const content = `
+                <div class="py-3">
+                    <h6 class="mb-3">群组成员 (${members.length}人)</h6>
+                    ${memberList}
+                </div>
+            `;
+            
+            // 使用 Bootstrap 模态框显示
+            const modalHtml = `
+                <div class="modal fade" id="membersModal" tabindex="-1">
+                    <div class="modal-dialog modal-lg">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title"><i class="fas fa-users"></i> 群组成员</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                ${content}
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // 移除旧的模态框（如果有）
+            document.getElementById('membersModal')?.remove();
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+            new bootstrap.Modal(document.getElementById('membersModal')).show();
+        } catch (error) {
+            alert('获取成员失败：' + error);
+        }
+    }
+    
+    // 移除群组成员
+    async function removeMember(groupId, userId, nickname) {
+        if (!confirm(`确定要移除成员 "${nickname}" 吗？`)) return;
+        
+        try {
+            const response = await fetch('/api/admin/remove_member', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ group_id: groupId, user_id: userId })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                alert('成员已移除');
+                bootstrap.Modal.getInstance(document.getElementById('membersModal')).hide();
+                // 刷新数据
+                await refreshAdminPage();
+            } else {
+                alert('移除失败：' + result.error);
+            }
+        } catch (error) {
+            alert('移除失败：' + error);
+        }
+    }
+    
+    // 刷新管理页面数据
+    async function refreshAdminPage() {
+        try {
+            const response = await fetch('/admin');
+            const html = await response.text();
+            
+            // 解析 HTML 提取数据
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            
+            // 更新整个主要内容区域
+            const newContent = doc.querySelector('.admin-container');
+            const oldContent = document.querySelector('.admin-container');
+            if (newContent && oldContent) {
+                oldContent.innerHTML = newContent.innerHTML;
+            }
+            
+            // 等待 DOM 完全更新后再加载数据
+            setTimeout(() => {
+                console.log('DOM 更新完成，重新加载数据...');
+                loadGroupMemberCounts();
+                loadUserGroups();
+            }, 200);
+        } catch (error) {
+            console.error('刷新失败:', error);
+            location.reload(); // 如果 AJAX 刷新失败则整页刷新
+        }
+    }
+    
+    // 加载群组成员数
+    async function loadGroupMemberCounts() {
+        console.log('加载群组成员数...');
+        const elements = document.querySelectorAll('[id^="member-count-"]');
+        console.log('找到成员数元素:', elements.length);
+        
+        for (const el of elements) {
+            const groupId = el.id.replace('member-count-', '');
+            console.log('加载群组', groupId, '的成员数');
+            try {
+                const response = await fetch(`/api/admin/group_members/${groupId}`);
+                const members = await response.json();
+                console.log('群组', groupId, '成员数:', members.length);
+                if (members.error) {
+                    el.textContent = '-';
+                } else {
+                    el.textContent = members.length;
+                }
+            } catch (error) {
+                console.error('加载失败:', error);
+                el.textContent = '-';
+            }
+        }
+    }
+    
+    // 加载用户已加入的群组
+    async function loadUserGroups() {
+        document.querySelectorAll('.user-groups').forEach(async (el) => {
+            const userId = el.dataset.userId;
+            try {
+                const response = await fetch(`/api/admin/user_groups/${userId}`);
+                const groups = await response.json();
+                
+                if (groups.length === 0) {
+                    el.innerHTML = '<span class="badge bg-secondary">未加群</span>';
+                } else {
+                    el.innerHTML = groups.map(g => 
+                        `<span class="badge bg-info me-1">${g.name}</span>`
+                    ).join('');
+                }
+            } catch (error) {
+                el.innerHTML = '<span class="badge bg-secondary">-</span>';
+            }
+        });
+    }
+    
+    // 添加到群组
+    async function addToGroup(userId, nickname) {
+        selectedUserId = userId;
+        document.getElementById('target-user-name').textContent = nickname;
+        
+        // 获取用户已加入的群组
+        let joinedGroupIds = [];
+        try {
+            const response = await fetch(`/api/admin/user_groups/${userId}`);
+            const groups = await response.json();
+            joinedGroupIds = groups.map(g => g.id);
+        } catch (error) {
+            console.error('获取用户群组失败:', error);
+        }
+        
+        // 更新下拉框，只显示未加入的群组
+        const selectEl = document.getElementById('target-group-select');
+        selectEl.innerHTML = '';
+        
+        const allGroups = JSON.parse(document.getElementById('all-groups-data').textContent);
+        const availableGroups = allGroups.filter(g => !joinedGroupIds.includes(g.id));
+        
+        if (availableGroups.length === 0) {
+            selectEl.innerHTML = '<option value="">用户已加入所有群组</option>';
+            selectEl.disabled = true;
+        } else {
+            selectEl.disabled = false;
+            availableGroups.forEach(g => {
+                const option = document.createElement('option');
+                option.value = g.id;
+                option.textContent = g.name;
+                selectEl.appendChild(option);
+            });
+        }
+        
+        new bootstrap.Modal(document.getElementById('addMemberModal')).show();
+    }
+    
+    // 确认添加成员
+    async function confirmAddMember() {
+        const groupId = document.getElementById('target-group-select').value;
+        
+        if (!groupId) {
+            alert('用户已加入所有群组');
+            return;
+        }
+        
+        try {
+            const response = await fetch('/api/admin/add_member', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ group_id: groupId, user_id: selectedUserId })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                alert('添加成功');
+                bootstrap.Modal.getInstance(document.getElementById('addMemberModal')).hide();
+                // 刷新整个页面数据
+                await refreshAdminPage();
+            } else {
+                alert('添加失败：' + result.error);
+            }
+        } catch (error) {
+            alert('添加失败：' + error);
+        }
+    }
+    
+    // 页面加载时
+    document.addEventListener('DOMContentLoaded', () => {
+        loadUserGroups();
+        loadGroupMemberCounts();
+    });
+</script>
+{% endblock %}

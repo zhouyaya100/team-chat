@@ -409,8 +409,8 @@ MIT License
 
 ## 👥 开发团队
 
-- **开发者**: 李公公
-- **联系方式**: [GitHub](https://github.com/zhouyaya100)
+- **开发者**: NotJustSRE
+- **GitHub**: https://github.com/zhouyaya100
 
 ---
 
